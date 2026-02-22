@@ -18,7 +18,7 @@ ROOTDIR="${CACHE_DIR}/rootdir"
 mkdir -p "${ROOTDIR}"
 
 is_mounted() {
-	sudo findmnt -rn -T "${ROOTDIR}" > /dev/null 2>&1
+	sudo findmnt -rn -M "${ROOTDIR}" > /dev/null 2>&1
 }
 
 cleanup() {
