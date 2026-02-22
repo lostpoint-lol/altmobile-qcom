@@ -63,6 +63,13 @@ cd "${FIRMWARE_PKG_DIR}"
 
 rpmbuild --target "${ARCH}" --define "_topdir ${FIRMWARE_PKG_DIR}" \
 			-bb "${FIRMWARE_PKG_DIR}/SPECS/${PKG_NAME}.spec"
+
+if [ -e "${PACKAGES_DIR}" ] && [ ! -d "${PACKAGES_DIR}" ]; then
+	echo "Error: ${PACKAGES_DIR} exists and is not a directory."
+	exit 1
+fi
+mkdir -p "${PACKAGES_DIR}"
+
 rm -f ${PACKAGES_DIR}/firmware-*.arm64.rpm
 cp "${FIRMWARE_PKG_DIR}/RPMS/"*/*.rpm "${PACKAGES_DIR}"
-echo "Firmware package build done: $(ls -d ${PACKAGES_DIR}/firmware-*.rpm)"
+echo "Firmware package build done: ${PACKAGES_DIR}/firmware-*.rpm"
