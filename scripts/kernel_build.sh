@@ -67,7 +67,15 @@ make_boot_img "${KERNEL_OUTPUT}"
 
 # Build and copy the RPM packages
 rm -rf "${KERNEL_OUTPUT}/rpmbuild/RPMS/"
-make ${MAKEPROPS} rpm-pkg
+
+RPMPKG_MAKE_ARGS=()
+if command -v aarch64-linux-gnu-strip > /dev/null 2>&1; then
+	RPMPKG_MAKE_ARGS+=(RPMOPTS="--define '__strip $(command -v aarch64-linux-gnu-strip)' --define '__objdump $(command -v aarch64-linux-gnu-objdump)'")
+else
+	echo "Warning: aarch64-linux-gnu-strip not found, rpm-pkg will use host strip."
+fi
+
+make ${MAKEPROPS} "${RPMPKG_MAKE_ARGS[@]}" rpm-pkg
 
 if [ -e "${PACKAGES_DIR}" ] && [ ! -d "${PACKAGES_DIR}" ]; then
 	echo "Error: ${PACKAGES_DIR} exists and is not a directory."
