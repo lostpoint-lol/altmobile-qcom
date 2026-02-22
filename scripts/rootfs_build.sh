@@ -33,7 +33,7 @@ if is_mounted; then
 	sudo umount "${ROOTDIR}"
 fi
 
-if ! sudo mount -o loop "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
+if ! sudo mount -o loop,rw "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
 	echo "Error: Failed to mount ${EXTRACTED_IMAGE} image."
 	exit 1
 fi
@@ -66,9 +66,17 @@ if [ ! -d "${PACKAGES_DIR}" ]; then
 	exit 1
 fi
 
+echo "Preparing RPM database in ${ROOTDIR}..."
+sudo rm -rf "${ROOTDIR}/var/lib/rpm"
+sudo mkdir -p "${ROOTDIR}/var/lib/rpm"
+if ! sudo rpm --root "${ROOTDIR}" --dbpath /var/lib/rpm --initdb; then
+	echo "Error: Failed to initialize RPM database in ${ROOTDIR}."
+	exit 1
+fi
+
 if ls "${PACKAGES_DIR}"/*.rpm 1> /dev/null 2>&1; then
 	sudo rpm -Uvh --noscripts --replacepkgs --root "${ROOTDIR}"	\
-	--ignorearch --nodeps -i "${PACKAGES_DIR}"/*.rpm ||		\
+	--dbpath /var/lib/rpm --ignorearch --nodeps -i "${PACKAGES_DIR}"/*.rpm ||		\
 	(echo "Error installing packages" && exit 1)
 else
 	echo "Error: No RPM packages found in ${PACKAGES_DIR}."
