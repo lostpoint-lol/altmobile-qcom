@@ -41,9 +41,9 @@ if ! find_defconfig "${BASE_DEFCONFIG}"; then
 		echo "Warning: ${BASE_DEFCONFIG} not found; using ${SOC_DEFCONFIG}."
 		BASE_DEFCONFIG="${SOC_DEFCONFIG}"
 	else
-		echo "Error: Can't find defconfig '${BASE_DEFCONFIG}' in arch/${ARCH}/configs/."
-		echo "Hint: update DEFCONFIG in deviceinfo (for ${DEVICE_NAME} usually ${SOC}_defconfig)."
-		exit 1
+		echo "Warning: can't find '${BASE_DEFCONFIG}' or '${SOC_DEFCONFIG}' in arch/${ARCH}/configs/."
+		echo "Warning: falling back to generic defconfig; adjust DEFCONFIG in deviceinfo for ${DEVICE_NAME}."
+		BASE_DEFCONFIG="defconfig"
 	fi
 fi
 

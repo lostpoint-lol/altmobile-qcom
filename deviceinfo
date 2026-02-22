@@ -11,7 +11,7 @@ declare -A REPOS=(
   ["FIRMWARE"]="https://github.com/mainlining/firmware-nothing-spacewar master"
   ["ALSAUCM"]="https://github.com/mainlining/alsa-ucm-conf spacewar/pong"
 )
-DEFCONFIG="sc7280_defconfig nothing-spacewar.config"
+DEFCONFIG="sm7325_defconfig nothing-spacewar.config"
 CMDLINE="console=tty0 root=PARTLABEL=${PARTLABEL}"
 
 # Maintainer
