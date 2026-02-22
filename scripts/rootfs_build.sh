@@ -19,8 +19,17 @@ mkdir -p "${ROOTDIR}"
 
 # Mount the image
 sudo umount "${ROOTDIR}" > /dev/null || true
-sudo mount "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}" \
-			|| echo "Failed to mount ${EXTRACTED_IMAGE} image"
+if ! sudo mount "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
+	echo "Error: failed to mount ${WORK_DIR}/${EXTRACTED_IMAGE} to ${ROOTDIR}."
+	echo "Diagnostic: mount command returned a non-zero exit code."
+	exit 1
+fi
+
+if ! mountpoint -q "${ROOTDIR}"; then
+	echo "Error: mount verification failed, ${ROOTDIR} is not a mount point."
+	echo "Diagnostic: ${ROOTDIR} entry not found among active mount points."
+	exit 1
+fi
 
 # Replace fstab
 PARTLABEL="${PARTLABEL}" envsubst < "${SRC_DIR}/fstab" \
