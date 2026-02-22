@@ -16,13 +16,50 @@ KERNEL_OUTPUT="${BUILD_DIR}/${FOLDER_NAME}-output"
 MAKEPROPS="-j$(nproc) O=${KERNEL_OUTPUT} \
 			ARCH=${ARCH} CROSS_COMPILE=aarch64-linux-gnu-"
 
+read -r -a DEFCONFIG_TOKENS <<< "${DEFCONFIG}"
+BASE_DEFCONFIG="${DEFCONFIG_TOKENS[0]:-}"
+
+if [ -z "${BASE_DEFCONFIG}" ]; then
+	echo "Error: DEFCONFIG is empty in deviceinfo."
+	exit 1
+fi
+
+find_defconfig() {
+	local CANDIDATE="$1"
+	[ -f "${REPO_DIR}/arch/${ARCH}/configs/${CANDIDATE}" ]
+}
+
 # Clone the kernel source repository
 mkdir -p "${CACHE_DIR}"
 git_clone "KERNEL" "${CACHE_DIR}/${FOLDER_NAME}"
 
 # Build the kernel using the specified defconfig
 cd "${REPO_DIR}"
-make ${MAKEPROPS} ${DEFCONFIG}
+if ! find_defconfig "${BASE_DEFCONFIG}"; then
+	SOC_DEFCONFIG="${SOC}_defconfig"
+	if find_defconfig "${SOC_DEFCONFIG}"; then
+		echo "Warning: ${BASE_DEFCONFIG} not found; using ${SOC_DEFCONFIG}."
+		BASE_DEFCONFIG="${SOC_DEFCONFIG}"
+	else
+		echo "Warning: can't find '${BASE_DEFCONFIG}' or '${SOC_DEFCONFIG}' in arch/${ARCH}/configs/."
+		echo "Warning: falling back to generic defconfig; adjust DEFCONFIG in deviceinfo for ${DEVICE_NAME}."
+		BASE_DEFCONFIG="defconfig"
+	fi
+fi
+
+make ${MAKEPROPS} "${BASE_DEFCONFIG}"
+
+for CONFIG_FRAGMENT in "${DEFCONFIG_TOKENS[@]:1}"; do
+	if [ -f "${REPO_DIR}/${CONFIG_FRAGMENT}" ]; then
+		echo "Applying config fragment: ${CONFIG_FRAGMENT}"
+		"${REPO_DIR}/scripts/kconfig/merge_config.sh" -m -O "${KERNEL_OUTPUT}" \
+			"${KERNEL_OUTPUT}/.config" "${REPO_DIR}/${CONFIG_FRAGMENT}"
+		make ${MAKEPROPS} olddefconfig
+	else
+		echo "Warning: config fragment '${CONFIG_FRAGMENT}' not found in kernel repo, skipping."
+	fi
+done
+
 make ${MAKEPROPS}
 
 # Make boot.img
@@ -30,9 +67,22 @@ make_boot_img "${KERNEL_OUTPUT}"
 
 # Build and copy the RPM packages
 rm -rf "${KERNEL_OUTPUT}/rpmbuild/RPMS/"
-make ${MAKEPROPS} rpm-pkg
+
+RPMPKG_MAKE_ARGS=()
+if command -v aarch64-linux-gnu-strip > /dev/null 2>&1; then
+	RPMPKG_MAKE_ARGS+=(RPMOPTS="--define '__strip $(command -v aarch64-linux-gnu-strip)' --define '__objdump $(command -v aarch64-linux-gnu-objdump)'")
+else
+	echo "Warning: aarch64-linux-gnu-strip not found, rpm-pkg will use host strip."
+fi
+
+make ${MAKEPROPS} "${RPMPKG_MAKE_ARGS[@]}" rpm-pkg
+
+if [ -e "${PACKAGES_DIR}" ] && [ ! -d "${PACKAGES_DIR}" ]; then
+	echo "Error: ${PACKAGES_DIR} exists and is not a directory."
+	exit 1
+fi
 mkdir -p "${PACKAGES_DIR}"
-echo "Removing old kernel packages: $(ls -d ${PACKAGES_DIR}/kernel-*.rpm || true)"
+echo "Removing old kernel packages from: ${PACKAGES_DIR}"
 rm -f ${PACKAGES_DIR}/kernel-*.rpm
 cp "${KERNEL_OUTPUT}/rpmbuild/RPMS/"*/*.rpm "${PACKAGES_DIR}"
-echo "Kernel packages build done: $(ls -d ${PACKAGES_DIR}/kernel-*.rpm)"
+echo "Kernel packages build done: ${PACKAGES_DIR}/kernel-*.rpm"

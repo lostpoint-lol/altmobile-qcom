@@ -33,10 +33,18 @@ declare -A symlinks=(
 
 for src in "${!symlinks[@]}"; do
     dest="${symlinks[$src]}"
-    if [ ! -e "$dest" ]; then
-        log "Creating symlink: $dest -> $src"
-        sudo ln -s "$src" "$dest"
-    else
-        log "Symlink or file $dest already exists, skipping."
+    if [ -L "$dest" ]; then
+        current_target=$(readlink -f "$dest" || true)
+        desired_target=$(readlink -f "$src" || true)
+        if [ "$current_target" = "$desired_target" ]; then
+            log "Symlink $dest already points to $src, skipping."
+            continue
+        fi
+    elif [ -e "$dest" ]; then
+        log "File $dest already exists and is not a symlink, skipping."
+        continue
     fi
+
+    log "Creating/updating symlink: $dest -> $src"
+    sudo ln -sfn "$src" "$dest"
 done
