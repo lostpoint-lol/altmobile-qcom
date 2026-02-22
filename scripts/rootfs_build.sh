@@ -25,8 +25,8 @@ cleanup() {
 trap cleanup EXIT
 
 # Mount the image
-sudo umount "${ROOTDIR}" > /dev/null 2>&1 || true
-if ! sudo mount -o loop "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
+sudo umount "${ROOTDIR}" > /dev/null || true
+if ! sudo mount "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
 	echo "Error: Failed to mount ${EXTRACTED_IMAGE} image."
 	exit 1
 fi
@@ -36,15 +36,10 @@ if ! mountpoint -q "${ROOTDIR}"; then
 	exit 1
 fi
 
-if [ ! -d "${ROOTDIR}/etc" ]; then
-	echo "Error: Mounted image does not look like a Linux rootfs (${ROOTDIR}/etc is missing)."
-	exit 1
-fi
-
 # Replace fstab
 PARTLABEL="${PARTLABEL}" envsubst < "${SRC_DIR}/fstab" \
 			| sudo tee "${ROOTDIR}/etc/fstab" > /dev/null \
-			|| { echo "Error: Failed to replace /etc/fstab"; exit 1; }
+			|| { echo "Error: Failed to replace /etc/fstab"; sudo umount "${ROOTDIR}"; exit 1; }
 
 # Install a custom ALSA Use Case Manager configuration
 FOLDER_NAME="alsa-${VENDOR}-${CODENAME}-git"
