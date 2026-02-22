@@ -17,6 +17,13 @@ get_alt_image
 ROOTDIR="${CACHE_DIR}/rootdir"
 mkdir -p "${ROOTDIR}"
 
+cleanup() {
+	if mountpoint -q "${ROOTDIR}"; then
+		sudo umount "${ROOTDIR}"
+	fi
+}
+trap cleanup EXIT
+
 # Mount the image
 sudo umount "${ROOTDIR}" > /dev/null || true
 if ! sudo mount "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
@@ -45,13 +52,14 @@ sudo cp -r "${CACHE_DIR}/${FOLDER_NAME}"/{ucm,ucm2} "${ROOTDIR}/usr/share/alsa"
 if ls "${PACKAGES_DIR}"/*.rpm 1> /dev/null 2>&1; then
 	sudo rpm -Uvh --noscripts --replacepkgs --root "${ROOTDIR}"	\
 	--ignorearch --nodeps -i "${PACKAGES_DIR}"/*.rpm ||		\
-	(echo "Error installing packages" && sudo umount "${ROOTDIR}" && exit 1)
+	(echo "Error installing packages" && exit 1)
 else
 	echo "Error: No RPM packages found in ${PACKAGES_DIR}."
-	sudo umount "${ROOTDIR}" && exit 1
+	exit 1
 fi
 
 echo "Unmounting the rootfs..."
 # Unmount the image
 sudo umount "${ROOTDIR}"
+trap - EXIT
 echo "Rootfs build done: $(ls -d "${WORK_DIR}/${EXTRACTED_IMAGE}")"
