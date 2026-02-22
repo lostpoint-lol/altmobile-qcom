@@ -19,18 +19,26 @@ mkdir -p "${ROOTDIR}"
 
 # Mount the image
 sudo umount "${ROOTDIR}" > /dev/null || true
-sudo mount "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}" \
-			|| echo "Failed to mount ${EXTRACTED_IMAGE} image"
+if ! sudo mount "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
+	echo "Error: Failed to mount ${EXTRACTED_IMAGE} image."
+	exit 1
+fi
+
+if ! mountpoint -q "${ROOTDIR}"; then
+	echo "Error: ${ROOTDIR} is not mounted; aborting to avoid modifying host files."
+	exit 1
+fi
 
 # Replace fstab
 PARTLABEL="${PARTLABEL}" envsubst < "${SRC_DIR}/fstab" \
 			| sudo tee "${ROOTDIR}/etc/fstab" > /dev/null \
-			|| echo "Failed to replace /etc/fstab"
+			|| { echo "Error: Failed to replace /etc/fstab"; sudo umount "${ROOTDIR}"; exit 1; }
 
 # Install a custom ALSA Use Case Manager configuration
 FOLDER_NAME="alsa-${VENDOR}-${CODENAME}-git"
 git_clone "ALSAUCM" "${CACHE_DIR}/${FOLDER_NAME}"
 
+sudo mkdir -p "${ROOTDIR}/usr/share/alsa"
 sudo cp -r "${CACHE_DIR}/${FOLDER_NAME}"/{ucm,ucm2} "${ROOTDIR}/usr/share/alsa"
 
 # Install packages
