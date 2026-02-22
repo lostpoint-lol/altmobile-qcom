@@ -12,6 +12,14 @@ remove_efi_part() {
 	local IMAGE_PATH="$1"
 
 	echo "Root is needed to create loop devices"
+	if ! sudo -n true 2>/dev/null; then
+		echo "Requesting sudo access..."
+		sudo -v || {
+			echo "Error: sudo authentication is required to create loop devices."
+			return 1
+		}
+	fi
+
 	# Create loop devices and capture output
 	local kpartx_output
 	if ! kpartx_output=$(sudo kpartx -asv "${IMAGE_PATH}"); then
@@ -33,7 +41,8 @@ remove_efi_part() {
 		return 0
 	fi
 
-	local ROOTFS_PARTITION_LOOP="${loop_devices[1]}"
+	local ROOTFS_PARTITION_LOOP="${loop_devices[$((${#loop_devices[@]} - 1))]}"
+	echo "Using rootfs partition: ${ROOTFS_PARTITION_LOOP}"
 
 	# Temporary file for the rootfs image
 	local TEMP_IMAGE_PATH="${IMAGE_PATH%.img}-rootfs.img"
@@ -95,11 +104,21 @@ make_boot_img() {
 	echo
 	echo "Building boot.img for aboot..."
 	local IMAGE_PATH DTB_PATH
+	local MKBOOTIMG_BIN
 	IMAGE_PATH="$1/arch/arm64/boot/Image.gz"
 	DTB_PATH="$1/arch/arm64/boot/dts/qcom/${SOC}-${VENDOR}-${CODENAME}.dtb"
 	OUTPUT="${WORK_DIR}/boot.img"
 
-	mkbootimg \
+	if command -v mkbootimg > /dev/null 2>&1; then
+		MKBOOTIMG_BIN="$(command -v mkbootimg)"
+	elif [ -x "${HOME}/mkbootimg/mkbootimg/mkbootimg.py" ]; then
+		MKBOOTIMG_BIN="python3 ${HOME}/mkbootimg/mkbootimg/mkbootimg.py"
+	else
+		echo "Error: mkbootimg is not available. Run ./scripts/buildtools.sh first."
+		return 1
+	fi
+
+	${MKBOOTIMG_BIN} \
 		--kernel "${IMAGE_PATH}"	\
 		--dtb "${DTB_PATH}"		\
 		--cmdline "${CMDLINE}"		\
@@ -110,7 +129,7 @@ make_boot_img() {
 		--pagesize 4096			\
 		--header_version 2		\
 		-o "${OUTPUT}"	\
-		|| echo "Failed to make boot.img"
+		|| { echo "Error: Failed to make boot.img"; return 1; }
 
 	echo "bootimg for android bootloader build done: ${WORK_DIR}/boot.img"
 }
