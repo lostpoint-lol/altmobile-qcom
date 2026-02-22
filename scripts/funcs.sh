@@ -12,6 +12,14 @@ remove_efi_part() {
 	local IMAGE_PATH="$1"
 
 	echo "Root is needed to create loop devices"
+	if ! sudo -n true 2>/dev/null; then
+		echo "Requesting sudo access..."
+		sudo -v || {
+			echo "Error: sudo authentication is required to create loop devices."
+			return 1
+		}
+	fi
+
 	# Create loop devices and capture output
 	local kpartx_output
 	if ! kpartx_output=$(sudo kpartx -asv "${IMAGE_PATH}"); then
@@ -33,7 +41,8 @@ remove_efi_part() {
 		return 0
 	fi
 
-	local ROOTFS_PARTITION_LOOP="${loop_devices[1]}"
+	local ROOTFS_PARTITION_LOOP="${loop_devices[$((${#loop_devices[@]} - 1))]}"
+	echo "Using rootfs partition: ${ROOTFS_PARTITION_LOOP}"
 
 	# Temporary file for the rootfs image
 	local TEMP_IMAGE_PATH="${IMAGE_PATH%.img}-rootfs.img"
