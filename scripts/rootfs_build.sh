@@ -17,29 +17,41 @@ get_alt_image
 ROOTDIR="${CACHE_DIR}/rootdir"
 mkdir -p "${ROOTDIR}"
 
+is_mounted() {
+	sudo findmnt -rn -T "${ROOTDIR}" > /dev/null 2>&1
+}
+
 cleanup() {
-	if mountpoint -q "${ROOTDIR}"; then
+	if is_mounted; then
 		sudo umount "${ROOTDIR}"
 	fi
 }
 trap cleanup EXIT
 
 # Mount the image
-sudo umount "${ROOTDIR}" > /dev/null || true
-if ! sudo mount "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
+if is_mounted; then
+	sudo umount "${ROOTDIR}"
+fi
+
+if ! sudo mount -o loop "${WORK_DIR}/${EXTRACTED_IMAGE}" "${ROOTDIR}"; then
 	echo "Error: Failed to mount ${EXTRACTED_IMAGE} image."
 	exit 1
 fi
 
-if ! mountpoint -q "${ROOTDIR}"; then
+if ! is_mounted; then
 	echo "Error: ${ROOTDIR} is not mounted; aborting to avoid modifying host files."
+	exit 1
+fi
+
+if [ ! -d "${ROOTDIR}/etc" ]; then
+	echo "Error: Mounted image does not look like a Linux rootfs (${ROOTDIR}/etc is missing)."
 	exit 1
 fi
 
 # Replace fstab
 PARTLABEL="${PARTLABEL}" envsubst < "${SRC_DIR}/fstab" \
 			| sudo tee "${ROOTDIR}/etc/fstab" > /dev/null \
-			|| { echo "Error: Failed to replace /etc/fstab"; sudo umount "${ROOTDIR}"; exit 1; }
+			|| { echo "Error: Failed to replace /etc/fstab"; exit 1; }
 
 # Install a custom ALSA Use Case Manager configuration
 FOLDER_NAME="alsa-${VENDOR}-${CODENAME}-git"
