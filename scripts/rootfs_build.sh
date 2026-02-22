@@ -61,6 +61,11 @@ sudo mkdir -p "${ROOTDIR}/usr/share/alsa"
 sudo cp -r "${CACHE_DIR}/${FOLDER_NAME}"/{ucm,ucm2} "${ROOTDIR}/usr/share/alsa"
 
 # Install packages
+if [ ! -d "${PACKAGES_DIR}" ]; then
+	echo "Error: RPM packages directory does not exist: ${PACKAGES_DIR}"
+	exit 1
+fi
+
 if ls "${PACKAGES_DIR}"/*.rpm 1> /dev/null 2>&1; then
 	sudo rpm -Uvh --noscripts --replacepkgs --root "${ROOTDIR}"	\
 	--ignorearch --nodeps -i "${PACKAGES_DIR}"/*.rpm ||		\

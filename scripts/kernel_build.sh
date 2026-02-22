@@ -31,8 +31,13 @@ make_boot_img "${KERNEL_OUTPUT}"
 # Build and copy the RPM packages
 rm -rf "${KERNEL_OUTPUT}/rpmbuild/RPMS/"
 make ${MAKEPROPS} rpm-pkg
+
+if [ -e "${PACKAGES_DIR}" ] && [ ! -d "${PACKAGES_DIR}" ]; then
+	echo "Error: ${PACKAGES_DIR} exists and is not a directory."
+	exit 1
+fi
 mkdir -p "${PACKAGES_DIR}"
-echo "Removing old kernel packages: $(ls -d ${PACKAGES_DIR}/kernel-*.rpm || true)"
+echo "Removing old kernel packages from: ${PACKAGES_DIR}"
 rm -f ${PACKAGES_DIR}/kernel-*.rpm
 cp "${KERNEL_OUTPUT}/rpmbuild/RPMS/"*/*.rpm "${PACKAGES_DIR}"
-echo "Kernel packages build done: $(ls -d ${PACKAGES_DIR}/kernel-*.rpm)"
+echo "Kernel packages build done: ${PACKAGES_DIR}/kernel-*.rpm"
