@@ -41,7 +41,8 @@ remove_efi_part() {
 		return 0
 	fi
 
-	local ROOTFS_PARTITION_LOOP="${loop_devices[1]}"
+	local ROOTFS_PARTITION_LOOP="${loop_devices[$((${#loop_devices[@]} - 1))]}"
+	echo "Using rootfs partition: ${ROOTFS_PARTITION_LOOP}"
 
 	# Temporary file for the rootfs image
 	local TEMP_IMAGE_PATH="${IMAGE_PATH%.img}-rootfs.img"
